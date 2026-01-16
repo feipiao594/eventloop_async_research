@@ -156,7 +156,7 @@ async fn main() -> std::io::Result<()> {
         let (stream, peer) = match listener.accept().await {
             Ok(v) => v,
             Err(e) => {
-            eprintln!("[ChatServer] accept error: {e}");
+                eprintln!("[ChatServer] accept error: {e}");
                 continue;
             }
         };

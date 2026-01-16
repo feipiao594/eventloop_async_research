@@ -13,5 +13,9 @@ members = ["macros"]
 name = "tcp_server_async"
 path = "examples/tcp_server_async.rs"
 
+[[example]]
+name = "kv_server_async"
+path = "examples/kv_server_async.rs"
+
 [dependencies]
 eventloop_async_research_macros = { path = "macros" }
