@@ -1,0 +1,17 @@
+[package]
+name = "eventloop_async_research"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[workspace]
+members = ["macros"]
+
+[[example]]
+name = "tcp_server_async"
+path = "examples/tcp_server_async.rs"
+
+[dependencies]
+eventloop_async_research_macros = { path = "macros" }
