@@ -16,13 +16,5 @@
 运行：
 
 ```bash
-cd example/eventloop_async_research
-cargo run --example linux_loop_core_runner
-```
-
-可选：指定后端（默认 Linux 用 `epoll`，其他 Unix 用 `poll`）
-
-```bash
-cargo run --example linux_loop_core_runner -- epoll
-cargo run --example linux_loop_core_runner -- poll
+cargo run --example tcp_server_async
 ```
