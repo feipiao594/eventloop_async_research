@@ -41,9 +41,10 @@ pub fn current_executor() -> super::Executor {
     with_current_loop(|loop_ref| super::Executor::new(loop_ref.handle()))
 }
 
-pub fn spawn<F>(fut: F)
+pub fn spawn<F, T>(fut: F) -> super::JoinHandle<T>
 where
-    F: Future<Output = ()> + Send + 'static,
+    F: Future<Output = T> + Send + 'static,
+    T: Send + 'static,
 {
-    current_executor().spawn(fut);
+    current_executor().spawn(fut)
 }

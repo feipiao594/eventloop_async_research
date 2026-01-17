@@ -17,5 +17,13 @@ path = "examples/tcp_server_async.rs"
 name = "kv_server_async"
 path = "examples/kv_server_async.rs"
 
+[[example]]
+name = "task_orchestration"
+path = "examples/task_orchestration.rs"
+
+[[example]]
+name = "hello_world"
+path = "examples/hello_world.rs"
+
 [dependencies]
 eventloop_async_research_macros = { path = "macros" }

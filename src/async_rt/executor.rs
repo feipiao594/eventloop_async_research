@@ -1,4 +1,5 @@
 use super::context::LoopGuard;
+use super::join::{join_state, JoinHandle};
 use crate::runtime::Handle;
 
 use std::future::Future;
@@ -23,16 +24,33 @@ impl Executor {
         }
     }
 
-    pub fn spawn<F>(&self, fut: F)
+    pub fn spawn<F, T>(&self, fut: F) -> JoinHandle<T>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = T> + Send + 'static,
+        T: Send + 'static,
     {
+        let state = join_state::<T>();
+        let state2 = state.clone();
+        let wrapped = async move {
+            let v = fut.await;
+            if state2.cancelled.load(Ordering::Acquire) {
+                return;
+            }
+            *state2.result.lock().unwrap() = Some(v);
+            state2.done.store(true, Ordering::Release);
+            if let Some(w) = state2.waker.lock().unwrap().take() {
+                w.wake();
+            }
+        };
+
         let task = Arc::new(Task {
-            fut: Mutex::new(Box::pin(fut)),
+            fut: Mutex::new(Some(Box::pin(wrapped))),
             scheduled: AtomicBool::new(false),
             done: AtomicBool::new(false),
+            cancelled: AtomicBool::new(false),
         });
-        self.schedule(task);
+        self.schedule(task.clone());
+        JoinHandle::new(self.clone(), task, state)
     }
 
     pub(crate) fn schedule(&self, task: Arc<Task>) {
@@ -53,9 +71,10 @@ impl Executor {
 }
 
 pub(crate) struct Task {
-    fut: Mutex<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>,
+    fut: Mutex<Option<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>>,
     scheduled: AtomicBool,
     done: AtomicBool,
+    cancelled: AtomicBool,
 }
 
 impl Task {
@@ -63,17 +82,32 @@ impl Task {
         if self.done.load(Ordering::Acquire) {
             return;
         }
+        if self.cancelled.load(Ordering::Acquire) {
+            self.done.store(true, Ordering::Release);
+            let _ = self.fut.lock().unwrap().take();
+            return;
+        }
 
         let waker = task_waker(exec.clone(), self.clone());
         let mut cx = Context::from_waker(&waker);
 
         let mut fut = self.fut.lock().unwrap();
-        match fut.as_mut().poll(&mut cx) {
+        let Some(fut_inner) = fut.as_mut() else {
+            self.done.store(true, Ordering::Release);
+            return;
+        };
+        let poll_res = fut_inner.as_mut().poll(&mut cx);
+        match poll_res {
             Poll::Ready(()) => {
                 self.done.store(true, Ordering::Release);
+                let _ = fut.take();
             }
             Poll::Pending => {}
         }
+    }
+
+    pub(crate) fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Release);
     }
 }
 

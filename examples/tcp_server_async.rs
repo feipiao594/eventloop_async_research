@@ -1,5 +1,6 @@
 use eventloop_async_research::async_rt::{AsyncQueue, TaskGroup, TcpListener};
 
+use eventloop_async_research::async_rt;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -7,7 +8,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone)]
 struct Client {
     id: u64,
-    stream: eventloop_async_research::async_rt::TcpStream,
+    stream: async_rt::TcpStream,
     outbox: AsyncQueue<String>,
 }
 
@@ -85,7 +86,7 @@ async fn writer(client: Arc<Client>) {
 }
 
 async fn chat_session(client: Arc<Client>, room: Arc<ChatRoom>) {
-    let exec = eventloop_async_research::async_rt::current_executor();
+    let exec = async_rt::current_executor();
     let group = TaskGroup::new(exec.clone());
     group.spawn(writer(client.clone()));
     room.join(client.clone());
@@ -148,7 +149,7 @@ async fn main() -> std::io::Result<()> {
     eprintln!("[ChatServer] listening on {}", addr);
 
     let room = ChatRoom::new();
-    eventloop_async_research::async_rt::spawn(room.clone().run());
+    async_rt::spawn(room.clone().run());
 
     let next_id = Arc::new(AtomicU64::new(0));
 
@@ -169,6 +170,6 @@ async fn main() -> std::io::Result<()> {
             outbox: AsyncQueue::new(),
         });
 
-        eventloop_async_research::async_rt::spawn(chat_session(client, room.clone()));
+        async_rt::spawn(chat_session(client, room.clone()));
     }
 }
